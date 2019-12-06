@@ -1,9 +1,27 @@
 # 1. import Flask
 from flask import Flask
+from flask import jsonify
+
+import sqlalchemy
+from sqlalchemy.ext.automap import automap_base
+from sqlalchemy.orm import Session
+from sqlalchemy import create_engine, func, and_
+from sqlalchemy import desc
+
+import datetime as dt
+from datetime import timedelta, datetime
+from dateutil.relativedelta import relativedelta
 
 # 2. Create an app, being sure to pass __name__
 app = Flask(__name__)
+engine = create_engine("sqlite:///Resources/hawaii.sqlite")
 
+# connect to climate.ipynb
+Base = automap_base()
+Base.prepare(engine, reflect=True)
+Measurement = Base.classes.measurement
+Station = Base.classes.station
+session = Session(engine)
 
 # 3. Define what to do when a user hits the index route
 @app.route("/")
@@ -41,6 +59,11 @@ def stations():
 # query for the dates and temperature observations from a year from the last data point.
 # Return a JSON list of Temperature Observations (tobs) for the previous year.
 def tobs():
+    date = []
+    for _ in session.query(Measurement.date).order_by(Measurement.date.desc()):
+        date.append(_.date)
+    last_date = date[1]
+    one_year_ago = datetime.fromisoformat(last_date) - relativedelta(years=1)
     tobs = session.query(Measurement.date, Measurement.tobs).\
         filter(Measurement.date >= one_year_ago).\
             order_by(Measurement.date).all()
@@ -51,7 +74,7 @@ def tobs():
 # Calculate TMIN, TAVG, and TMAX for all dates greater than and equal to the start date.
 def startdate(start):
     tobs = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
-        filter(Measuremetn.date >= start).all()
+        filter(Measurement.date >= start).all()
     tobs_dict = dict()
     tobs_dict["Min Temp"] = tobs[0][0]
     tobs_dict["Avg Temp"] = tobs[0][1]
